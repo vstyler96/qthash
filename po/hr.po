@@ -1,0 +1,43 @@
+# Croatian translation for qthash
+# Copyright (c) 2014 Rosetta Contributors and Canonical Ltd 2014
+# This file is distributed under the same license as the qthash package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2014.
+# Milo Ivir <mail@milotype.de>, 2020, 2023.
+msgid ""
+msgstr ""
+"Project-Id-Version: qthash\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-24 22:38-0600\n"
+"PO-Revision-Date: 2023-07-29 21:02+0000\n"
+"Last-Translator: Milo Ivir <mail@milotype.de>\n"
+"Language-Team: Croatian <https://hosted.weblate.org/projects/gtkhash/"
+"translations/hr/>\n"
+"Language: hr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 5.0-dev\n"
+"X-Launchpad-Export-Date: 2014-04-23 05:49+0000\n"
+
+#: src/util/util.c:35
+#, c-format
+msgid "%u minute left"
+msgid_plural "%u minutes left"
+msgstr[0] "preostala %u minuta"
+msgstr[1] "preostale %u minute"
+msgstr[2] "preostalo %u minuta"
+
+#: src/util/util.c:39
+#, c-format
+msgid "%u second left"
+msgid_plural "%u seconds left"
+msgstr[0] "preostala %u sekunda"
+msgstr[1] "preostale %u sekunde"
+msgstr[2] "preostalo %u sekundi"
+
+#: src/util/util.c:58
+#, c-format
+msgid "%s of %s - %s (%s/sec)"
+msgstr "%s od %s – %s (%s/s)"

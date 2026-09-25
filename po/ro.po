@@ -1,0 +1,43 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR GtkHash authors
+# This file is distributed under the same license as the qthash package.
+# "Sob Data (HeavenlyChaos)" <sobdatag@gmail.com>, 2023.
+# NicolaeFericitu <cni@disroot.org>, 2024, 2025.
+# Andrea Andrei <andrea.tsg19@slmail.me>, 2026.
+msgid ""
+msgstr ""
+"Project-Id-Version: qthash 1.4\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-24 22:38-0600\n"
+"PO-Revision-Date: 2026-05-31 15:01+0000\n"
+"Last-Translator: Andrea Andrei <andrea.tsg19@slmail.me>\n"
+"Language-Team: Romanian <https://hosted.weblate.org/projects/gtkhash/"
+"translations/ro/>\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < "
+"20)) ? 1 : 2;\n"
+"X-Generator: Weblate 2026.6.dev0\n"
+
+#: src/util/util.c:35
+#, c-format
+msgid "%u minute left"
+msgid_plural "%u minutes left"
+msgstr[0] "%u minut rămas"
+msgstr[1] "%u minute rămase"
+msgstr[2] "%u de minute rămase"
+
+#: src/util/util.c:39
+#, c-format
+msgid "%u second left"
+msgid_plural "%u seconds left"
+msgstr[0] "%u secundă rămasă"
+msgstr[1] "%u secunde rămase"
+msgstr[2] "%u de secunde rămase"
+
+#: src/util/util.c:58
+#, c-format
+msgid "%s of %s - %s (%s/sec)"
+msgstr "%s din %s - %s (%s/sec)"

@@ -1,0 +1,117 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os.name }} (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.os.image }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - clang
+          - gcc
+        os:
+          - name: debian-13
+            image: mirror.gcr.io/library/debian:13
+          - name: ubuntu-25.04
+            image: mirror.gcr.io/library/ubuntu:25.04
+          - name: ubuntu-25.10
+            image: mirror.gcr.io/library/ubuntu:25.10
+          - name: ubuntu-26.04-lts
+            image: mirror.gcr.io/library/ubuntu:26.04
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y \
+            ca-certificates \
+            git
+
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          opt_pkg() { apt-cache show "$1" >/dev/null 2>&1 && echo "$1" || :; }
+          apt-get install -y \
+            ${{ matrix.compiler }} \
+            ${{ matrix.compiler == 'gcc' && 'g++' || '' }} \
+            $(opt_pkg libblake3-dev) \
+            curl \
+            desktop-file-utils \
+            gcovr \
+            gettext \
+            gnupg \
+            gtk-update-icon-cache \
+            libb2-dev \
+            libgcrypt20-dev \
+            libglib2.0-dev \
+            libmbedtls-dev \
+            libssl-dev \
+            libxxhash-dev \
+            linux-libc-dev \
+            meson \
+            nettle-dev \
+            ninja-build \
+            pkg-config \
+            qt6-base-dev \
+            qt6-base-dev-tools
+
+      - name: meson setup
+        env:
+          CC: ${{ matrix.compiler }}
+          CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+        run: |
+          has_pkg() { apt-cache show "$1" >/dev/null 2>&1 && echo true || echo false; }
+          meson setup _build \
+            -Db_coverage=true \
+            -Dblake2=true \
+            -Dblake3=$(has_pkg libblake3-dev) \
+            -Dgcrypt=true \
+            -Dglib-checksums=true \
+            -Dinternal-md6=true \
+            -Dlibcrypto=true \
+            -Dlinux-crypto=true \
+            -Dmbedtls=true \
+            -Dnettle=true \
+            -Dxxhash=true \
+            -Dzlib=true
+
+      - name: meson compile
+        run: meson compile -C _build
+
+      - name: meson test
+        run: meson test -C _build -v
+
+      - name: meson install
+        run: meson install -C _build --destdir _install
+
+      - name: Generate test coverage report
+        if: matrix.os.name == 'debian-13' && matrix.compiler == 'gcc'
+        run: ninja -C _build coverage-xml
+
+      - name: Upload test coverage report to Codecov
+        if: matrix.os.name == 'debian-13' && matrix.compiler == 'gcc'
+        uses: codecov/codecov-action@v7
+        with:
+          files: _build/meson-logs/coverage.xml
+          verbose: true
+
+      - name: meson dist
+        if: matrix.os.name == 'debian-13' && matrix.compiler == 'gcc'
+        run: meson dist -C _build --no-tests
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.os.name == 'debian-13' && matrix.compiler == 'gcc'
+        with:
+          name: qthash-${{ github.sha }}
+          path: _build/meson-dist/*
+          if-no-files-found: error

@@ -1,0 +1,338 @@
+project(
+    'qthash',
+    'c',
+    version: '1.0.0',
+    meson_version: '>=1.7',  # Debian 13, Ubuntu 25.04
+    license: 'GPL-2.0-or-later',
+    default_options: [
+        'b_lto=true',
+        'b_pie=true',
+        'buildtype=debugoptimized',
+        'c_std=c17',
+        'warning_level=2',
+    ],
+)
+
+gnome = import('gnome')
+i18n = import('i18n')
+
+################################################################################
+# Project configuration
+
+package_name = 'QtHash'
+application_id = 'dev.kingbeencent.qthash'
+
+config = configuration_data()
+config.set_quoted('APPLICATION_ID', application_id)
+config.set_quoted('G_LOG_DOMAIN', package_name)
+config.set_quoted('PACKAGE', meson.project_name())
+config.set_quoted('PACKAGE_NAME', package_name)
+config.set_quoted('PACKAGE_STRING', package_name + ' ' + meson.project_version())
+config.set_quoted('VERSION', meson.project_version())
+
+config.set('HASH_FILE_BUFFER_SIZE', 131072, description: 'File read buffer size (bytes)')
+config.set('HASH_FILE_REPORT_INTERVAL', 166, description: 'Progress report interval (milliseconds)')
+
+gettext_package = meson.project_name()
+config.set10('ENABLE_NLS', true)
+config.set_quoted('GETTEXT_PACKAGE', gettext_package)
+config.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
+
+################################################################################
+# Compiler options
+
+cc = meson.get_compiler('c')
+
+assert(get_option('warning_level').to_int() >= 2)
+
+compiler_options = [
+    '-fno-common',
+    '-fvisibility=hidden',
+    '-pedantic',
+    '-Waggregate-return',
+    '-Wbad-function-cast',
+    '-Wcast-align',
+    '-Werror=implicit-function-declaration',
+    '-Wfloat-equal',
+    '-Wformat-nonliteral',
+    '-Wformat-security',
+    '-Wformat-signedness',
+    '-Wformat',
+    '-Wlogical-op',
+    '-Wmissing-declarations',
+    '-Wmissing-noreturn',
+    '-Wno-parentheses-equality',
+    '-Wredundant-decls',
+    '-Wshadow',
+    '-Wswitch-default',
+    '-Wundef',
+    '-Wwrite-strings',
+]
+add_project_arguments(cc.get_supported_arguments(compiler_options), language: 'c')
+
+################################################################################
+# Dependencies
+
+no_dep = dependency('', required: false)
+
+glib = dependency('glib-2.0', version: '>=2.48.0')
+gio = dependency('gio-2.0', version: '>=2.48.0')
+
+#######################################
+# Hash libraries
+
+##### BLAKE2
+blake2 = get_option('blake2') ? dependency('libb2') : no_dep
+config.set10('ENABLE_BLAKE2', get_option('blake2'))
+
+##### BLAKE3
+blake3 = get_option('blake3') ? dependency('libblake3') : no_dep
+config.set10('ENABLE_BLAKE3', get_option('blake3'))
+
+##### GCrypt
+libgcrypt = get_option('gcrypt') ? dependency('libgcrypt', version: '>=1.6.0') : no_dep
+config.set10('ENABLE_GCRYPT', get_option('gcrypt'))
+config.set_quoted('HASH_LIB_GCRYPT_MIN_VER', '1.6.0')
+detected_gcrypt_functions = []
+if cc.has_header_symbol('gcrypt.h', 'GCRY_MD_BLAKE2B_512')
+    detected_gcrypt_functions += ['BLAKE2b', 'BLAKE2s']
+endif
+if cc.has_header_symbol('gcrypt.h', 'GCRY_MD_SHA3_512')
+    detected_gcrypt_functions += ['SHA3-224', 'SHA3-256', 'SHA3-384', 'SHA3-512']
+endif
+if cc.has_header_symbol('gcrypt.h', 'GCRY_MD_SM3')
+    detected_gcrypt_functions += ['SM3']
+endif
+if cc.has_header_symbol('gcrypt.h', 'GCRY_MD_STRIBOG512')
+    detected_gcrypt_functions += ['STREEBOG256', 'STREEBOG512']
+endif
+
+##### Glib checksums
+config.set10('ENABLE_GLIB_CHECKSUMS', get_option('glib-checksums'))
+
+##### Internal MD6
+config.set10('ENABLE_INTERNAL_MD6', get_option('internal-md6'))
+
+##### Libcrypto (openssl)
+libcrypto = get_option('libcrypto') ? dependency('libcrypto', version: '>=1.1') : no_dep
+config.set10('ENABLE_LIBCRYPTO', get_option('libcrypto'))
+
+##### Linux crypto
+if get_option('linux-crypto')
+    cc.has_header('linux/if_alg.h') or error('Header if_alg.h not found !')
+endif
+config.set10('ENABLE_LINUX_CRYPTO', get_option('linux-crypto'))
+
+##### MbedTLS
+mbedtls = get_option('mbedtls') ? cc.find_library('mbedcrypto', has_headers: 'mbedtls/md.h') : no_dep
+config.set10('ENABLE_MBEDTLS', get_option('mbedtls'))
+detected_mbedtls_functions = []
+if cc.has_header_symbol('mbedtls/md.h', 'MBEDTLS_MD_CAN_SHA3_512')
+    detected_mbedtls_functions += ['SHA3-224', 'SHA3-256', 'SHA3-384', 'SHA3-512']
+endif
+
+##### Nettle
+nettle = get_option('nettle') ? dependency('nettle') : no_dep
+config.set10('ENABLE_NETTLE', nettle.found())
+detected_nettle_functions = []
+if cc.has_header('nettle/sm3.h')
+    detected_nettle_functions += ['SM3']
+    config.set10('HAVE_NETTLE_SM3_H', true)
+endif
+if cc.has_header('nettle/streebog.h')
+    detected_nettle_functions += ['STREEBOG256', 'STREEBOG512']
+    config.set10('HAVE_NETTLE_STREEBOG_H', true)
+endif
+
+##### xxHash
+xxhash = get_option('xxhash') ? dependency('libxxhash', version: '>=0.8.0') : no_dep
+config.set10('ENABLE_XXHASH', xxhash.found())
+
+##### Zlib
+zlib = get_option('zlib') ? dependency('zlib') : no_dep
+config.set10('ENABLE_ZLIB', zlib.found())
+
+add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
+root_include = include_directories('.')
+configure_file(
+    output: 'config.h',
+    configuration: config,
+)
+
+################################################################################
+# List available hash functions
+
+hash_functions = [
+    'ADLER32',
+    'BLAKE2b',
+    'BLAKE2s',
+    'BLAKE2bp',
+    'BLAKE2sp',
+    'BLAKE3',
+    'CRC32',
+    'CRC32C',
+    'GOST',
+    'MD2',
+    'MD4',
+    'MD5',
+    'MD6-224',
+    'MD6-256',
+    'MD6-384',
+    'MD6-512',
+    'MDC2',
+    'RIPEMD128',
+    'RIPEMD160',
+    'RIPEMD256',
+    'RIPEMD320',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+    'SHA3-224',
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+    'SM3',
+    'STREEBOG256',
+    'STREEBOG512',
+    'TIGER192',
+    'WHIRLPOOL',
+    'XXH32',
+    'XXH64',
+    'XXH3',
+    'XXH128',
+]
+
+gcrypt_funcs = detected_gcrypt_functions + [
+    'CRC32',
+    'GOST',
+    'MD4',
+    'MD5',
+    'RIPEMD160',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+    'TIGER192',
+    'WHIRLPOOL',
+]
+
+libcrypto_funcs = [
+    'BLAKE2b',
+    'BLAKE2s',
+    'MD2',
+    'MD4',
+    'MD5',
+    'MDC2',
+    'RIPEMD160',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+    'SHA3-224',
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+    'SM3',
+    'WHIRLPOOL',
+]
+
+linux_crypto_funcs = [
+    'BLAKE2b',
+    'BLAKE2s',
+    'CRC32C',
+    'MD4',
+    'MD5',
+    'RIPEMD128',
+    'RIPEMD160',
+    'RIPEMD256',
+    'RIPEMD320',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+    'SHA3-224',
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+    'TIGER192',
+    'WHIRLPOOL',
+    'XXH64',
+]
+
+mbedtls_funcs = detected_mbedtls_functions + [
+    'MD5',
+    'RIPEMD160',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+]
+
+nettle_funcs = detected_nettle_functions + [
+    'GOST',
+    'MD2',
+    'MD4',
+    'MD5',
+    'RIPEMD160',
+    'SHA1',
+    'SHA224',
+    'SHA256',
+    'SHA384',
+    'SHA512',
+    'SHA3-224',
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+]
+
+# Matches preferred order from src/hash/hash-lib.c
+hash_libs = {
+    'blake2': ['BLAKE2b', 'BLAKE2s', 'BLAKE2bp', 'BLAKE2sp'],
+    'blake3': ['BLAKE3'],
+    'xxhash': ['XXH32', 'XXH64', 'XXH3', 'XXH128'],
+    'gcrypt': gcrypt_funcs,
+    'libcrypto': libcrypto_funcs,
+    'mbedtls': mbedtls_funcs,
+    'nettle': nettle_funcs,
+    'linux_crypto': linux_crypto_funcs,
+    'zlib': ['ADLER32', 'CRC32'],
+    'glib_checksums': ['MD5', 'SHA1', 'SHA256', 'SHA384', 'SHA512'],
+    'internal_md6': ['MD6-224', 'MD6-256', 'MD6-384', 'MD6-512'],
+}
+
+functions_provided = {'Hash Function': 'Preferred Implementation'}
+foreach function : hash_functions
+    provide = []
+    foreach lib, functions : hash_libs
+        lib_enabled = config.get('ENABLE_' + lib.to_upper()) == 1
+        if lib_enabled and functions.contains(function)
+            provide += lib
+        endif
+    endforeach
+    functions_provided += {function: ', '.join(provide)}
+endforeach
+
+summary(functions_provided, section: 'Libraries')
+
+if get_option('linux-crypto')
+    summary({'linux-crypto': 'support depends on kernel module availability - check /proc/crypto'})
+endif
+
+###############################################################################
+
+subdir('po')
+subdir('data')
+subdir('src')
+
+subdir('qt')
+
+gnome.post_install(
+    gtk_update_icon_cache: true,
+    update_desktop_database: true,
+)
